@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Rasoi — Shreya & Aayush</title>
+  <title>Rasoi</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -11,7 +12,8 @@
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:#0D0B09;font-family:'Outfit',sans-serif;color:#F0EAE0}
-    ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:rgba(244,160,23,.15);border-radius:2px}
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-thumb{background:rgba(244,160,23,.15);border-radius:2px}
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   </style>
@@ -20,420 +22,498 @@
 <script type="text/babel">
 const {useState,useEffect,useRef} = React;
 
-const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const MEAL_ORDER=["Lunch","Dinner"];
-const MEAL_ICON={Lunch:"🌤",Dinner:"🌙"};
-const MEAL_BG={
-  Lunch:["rgba(92,158,106,.07)","rgba(92,158,106,.2)"],
-  Dinner:["rgba(212,130,26,.08)","rgba(212,130,26,.2)"],
+const DAYS        = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const MEAL_ORDER  = ["Lunch","Dinner"];
+const MEAL_ICON   = {Lunch:"🌤",Dinner:"🌙"};
+const MEAL_BG     = {
+  Lunch:  ["rgba(92,158,106,.07)","rgba(92,158,106,.2)"],
+  Dinner: ["rgba(212,130,26,.08)","rgba(212,130,26,.2)"],
 };
-const SKIP={"Fri-Dinner":true,"Sat-Dinner":true};
-const PANTRY_OPTS=["Rice","Atta","Dal","Poha","Oats","Bread","Eggs","Onion","Tomato","Potato","Garlic","Ginger","Curd","Milk","Paneer","Ghee","Oil","Turmeric","Cumin seeds","Mustard seeds","Coriander powder","Garam masala","Red chilli powder","Green chilli","Curry leaves","Lemon","Butter","Peanut butter","Banana","Almonds","Walnuts","Chana","Rajma","Moong dal","Besan","Soya chunks","Tofu","Chicken","Salt"];
-const HH=`HOUSEHOLD RULES:
-- Shreya: 60kg, yoga daily, protein 65-70g/day. No non-veg Tue/Thu. Solo dinners Mon/Tue/Thu. Thu dinner under 15 min.
-- Aayush: 74kg, gym daily, protein 100-110g/day. Office dinner Mon/Tue/Thu. Together Wed/Fri/Sat/Sun + all lunches.
-- NO breakfast. NO Friday dinner. NO Saturday dinner.
-- NEVER: khichdi, brinjal/baingan, lauki. No non-veg Tue/Thu. Weekday lunch = prefer leftovers from previous dinner.`;
+const CAT_META = {
+  Lunch:      {label:"🌤 Weekday Lunches",       color:"#5C9E6A"},
+  TadkaLunch: {label:"🥘 Wed & Fri Tadka Lunches",color:"#F4A017"},
+  Dinner:     {label:"🌙 Weekday Dinners",         color:"#8A9EBE"},
+  FriDinner:  {label:"🎉 Friday Dinner (Special)", color:"#E07060"},
+  SatLunch:   {label:"🧪 Saturday Lunch (Experimental)",color:"#2AABEE"},
+};
 
-// ── API — calls YOUR proxy, which adds the API key server-side ──
-function getProxy(){return localStorage.getItem("rasoi_proxy")||"";}
+const PANTRY_OPTS = ["Rice","Atta","Dal","Poha","Oats","Bread","Eggs","Onion","Tomato","Potato","Garlic","Ginger","Curd","Milk","Paneer","Ghee","Oil","Turmeric","Cumin seeds","Mustard seeds","Coriander powder","Garam masala","Red chilli powder","Green chilli","Curry leaves","Lemon","Butter","Peanut butter","Banana","Almonds","Walnuts","Chana","Rajma","Moong dal","Besan","Soya chunks","Tofu","Chicken","Salt"];
 
-async function ask(messages,maxTok,wantArray){
-  const proxy=getProxy();
-  if(!proxy) throw new Error("Proxy URL not set — click ⚙️ Setup first");
-  const r=await fetch(proxy.replace(/\/$/,"")+"/api/claude",{
-    method:"POST",
-    headers:{"content-type":"application/json"},
+const HH = [
+  "HOUSEHOLD RULES:",
+  "- Shreya: 60kg, yoga daily, protein 65-70g/day MINIMUM. PCOS: avoid high-GI, refined carbs, fried food, excess sugar.",
+  "- Aayush: 74kg, gym daily, protein 100-110g/day MINIMUM. Office dinner Mon/Tue/Thu.",
+  "- Shreya solo dinners Mon/Tue/Thu. No non-veg Tue/Thu. Thu dinner under 15 min.",
+  "- Meals this week: Mon-Fri lunch, Mon-Thu dinner, Fri dinner (special exciting), Sat lunch (experimental), Sun lunch+dinner.",
+  "- PROTEIN: Every meal min 28g for Shreya, 38g for Aayush. If dish alone is insufficient, ADD sides: curd 150g=8g, paneer 100g=18g, 2 eggs=12g, peanut butter 2tbsp=8g, nuts 30g=6g.",
+  "- PCOS rules: low-GI, complex carbs (millets, quinoa, oats, brown rice), lean proteins. No white rice daily, no maida, no excess sugar.",
+  "- TADKA HACK: Shreya freezes Indian tadka (onion+tomato+ginger+garlic) weekly. Wed lunch and Fri lunch MUST use this frozen tadka for quick meals like Chole, Rajma, Egg Curry, Chicken Curry. Max prep 20 min.",
+  "- Fri dinner: exciting, special, indulgent. Both eat together. Non-veg ok. e.g. Butter Chicken, Thai Green Curry, Prawn Pasta, Biryani.",
+  "- Sat lunch: experimental, fun, new cuisine. Both eat. e.g. Korean Bibimbap, Mexican Bowl, Japanese Ramen, Lebanese Mezze.",
+  "- NEVER repeat same dish twice in same week.",
+  "- Dal: MAX 1-2 per week, dinner only. Never for lunch.",
+  "- Mutton: MAX once per MONTH, only Mutton Yakhni or Mutton Curry.",
+  "- Chapati/roti: MAX 2-3 per MONTH. Prefer quinoa, millets, brown rice.",
+  "- Cuisines: mix Indian, Italian, Mexican, Asian, Mediterranean. At least 2 non-Indian per week.",
+  "- NEVER: khichdi, brinjal/baingan, lauki. No non-veg Tue/Thu.",
+].join("\n");
+
+// ── Proxy + storage helpers ───────────────────────────────────
+function getProxy(){ return localStorage.getItem("rasoi_proxy") || ""; }
+function getUserId(){
+  let id = localStorage.getItem("rasoi_uid");
+  if(!id){ id = "u_" + Math.random().toString(36).slice(2,10); localStorage.setItem("rasoi_uid",id); }
+  return id;
+}
+async function serverSave(data){
+  const p = getProxy(); if(!p) return;
+  try{ await fetch(p.replace(/\/$/,"")+"/api/save",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({userId:getUserId(),...data})}); }catch(_){}
+}
+async function serverLoad(){
+  const p = getProxy(); if(!p) return null;
+  try{
+    const r = await fetch(p.replace(/\/$/,"")+"/api/load?userId="+getUserId());
+    const d = await r.json();
+    return d.found ? d : null;
+  }catch(_){ return null; }
+}
+
+// ── Claude API via proxy ──────────────────────────────────────
+async function ask(messages, maxTok, wantArray){
+  const proxy = getProxy();
+  if(!proxy) throw new Error("Proxy URL not set. Click Setup first.");
+  const r = await fetch(proxy.replace(/\/$/,"")+"/api/claude",{
+    method:"POST", headers:{"content-type":"application/json"},
     body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTok,messages}),
   });
-  if(!r.ok){const t=await r.text().catch(()=>"");throw new Error(`Server error ${r.status}: ${t.slice(0,160)}`);}
-  const d=await r.json();
-  if(d.error) throw new Error(d.error.message||JSON.stringify(d.error));
-  let raw=(d.content||[]).map(c=>c.text||"").join("").trim();
-  raw=raw.replace(/```(?:json)?[\r\n]*/gi,"").replace(/```/g,"").trim();
-  const open=wantArray?"[":"{",close=wantArray?"]":"}";
-  const si=raw.indexOf(open),ei=raw.lastIndexOf(close);
-  if(si===-1||ei<=si) throw new Error(`No JSON found. Got: "${raw.slice(0,200)}"`);
-  try{return JSON.parse(raw.slice(si,ei+1));}
-  catch(e){throw new Error(`Parse error: ${e.message}. Near: "${raw.slice(si,si+150)}"`);}
+  if(!r.ok){ const t=await r.text().catch(()=>""); throw new Error("Server error "+r.status+": "+t.slice(0,120)); }
+  const d = await r.json();
+  if(d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+  let raw = (d.content||[]).map(c=>c.text||"").join("").trim();
+  raw = raw.replace(/```(?:json)?[\r\n]*/gi,"").replace(/```/g,"").trim();
+  const open = wantArray?"[":"{", close = wantArray?"]":"}";
+  const si = raw.indexOf(open), ei = raw.lastIndexOf(close);
+  if(si===-1||ei<=si) throw new Error("No JSON found. Got: "+raw.slice(0,150));
+  try{ return JSON.parse(raw.slice(si,ei+1)); }
+  catch(e){ throw new Error("Parse error: "+e.message); }
 }
-const askArr=(p,t=1000)=>ask([{role:"user",content:p}],t,true);
-const askObj=(p,t=900)=>ask([{role:"user",content:p}],t,false);
+const askArr = (p,t=900)  => ask([{role:"user",content:p}],t,true);
+const askObj = (p,t=1000) => ask([{role:"user",content:p}],t,false);
 async function askVision(b64,mime,prompt){
-  return ask([{role:"user",content:[
-    {type:"image",source:{type:"base64",media_type:mime,data:b64}},
-    {type:"text",text:prompt}
-  ]}],600,true);
+  return ask([{role:"user",content:[{type:"image",source:{type:"base64",media_type:mime,data:b64}},{type:"text",text:prompt}]}],600,true);
 }
 
-// ── UI base ──────────────────────────────────────────────────
-const Spin=({s=38})=><div style={{width:s,height:s,borderRadius:"50%",border:"3px solid rgba(255,255,255,.08)",borderTopColor:"#F4A017",animation:"spin .8s linear infinite",margin:"0 auto"}}/>;
-const cs={
-  card:{background:"#1C1814",border:"1px solid rgba(255,255,255,.12)",borderRadius:18,padding:"1.5rem",marginBottom:"1.1rem"},
-  inp:{width:"100%",background:"#221E19",border:"1px solid rgba(255,255,255,.12)",borderRadius:9,padding:"8px 12px",color:"#F0EAE0",fontFamily:"inherit",fontSize:".78rem",outline:"none",boxSizing:"border-box"},
-  sf:{padding:"9px 22px",border:"none",borderRadius:9,background:"#F4A017",color:"#0D0B09",fontFamily:"inherit",fontSize:".8rem",fontWeight:700,cursor:"pointer"},
-  gh:{padding:"9px 20px",border:"none",borderRadius:9,background:"rgba(255,255,255,.06)",color:"#8A7E6E",fontFamily:"inherit",fontSize:".8rem",fontWeight:600,cursor:"pointer"},
-  tgb:{padding:"9px 20px",border:"none",borderRadius:9,background:"#2AABEE",color:"#fff",fontFamily:"inherit",fontSize:".8rem",fontWeight:700,cursor:"pointer"},
+// ── UI helpers ────────────────────────────────────────────────
+const Spin = ({s=38}) => (
+  <div style={{width:s,height:s,borderRadius:"50%",border:"3px solid rgba(255,255,255,.08)",borderTopColor:"#F4A017",animation:"spin .8s linear infinite",margin:"0 auto"}}/>
+);
+const cs = {
+  card: {background:"#1C1814",border:"1px solid rgba(255,255,255,.12)",borderRadius:18,padding:"1.5rem",marginBottom:"1.1rem"},
+  inp:  {width:"100%",background:"#221E19",border:"1px solid rgba(255,255,255,.12)",borderRadius:9,padding:"8px 12px",color:"#F0EAE0",fontFamily:"inherit",fontSize:".78rem",outline:"none",boxSizing:"border-box"},
+  sf:   {padding:"9px 22px",border:"none",borderRadius:9,background:"#F4A017",color:"#0D0B09",fontFamily:"inherit",fontSize:".8rem",fontWeight:700,cursor:"pointer"},
+  gh:   {padding:"9px 20px",border:"none",borderRadius:9,background:"rgba(255,255,255,.06)",color:"#8A7E6E",fontFamily:"inherit",fontSize:".8rem",fontWeight:600,cursor:"pointer"},
+  tgb:  {padding:"9px 20px",border:"none",borderRadius:9,background:"#2AABEE",color:"#fff",fontFamily:"inherit",fontSize:".8rem",fontWeight:700,cursor:"pointer"},
 };
-function Prog({n}){return<div style={{display:"flex",gap:6,marginBottom:"1.5rem"}}>{[1,2,3,4,5].map(i=><div key={i} style={{height:3,flex:1,borderRadius:2,background:i<=n?"#F4A017":"rgba(255,255,255,.09)",transition:"background .3s"}}/>)}</div>;}
-function Err({msg,onRetry}){if(!msg)return null;return<div style={{background:"rgba(192,81,58,.1)",border:"1px solid rgba(192,81,58,.3)",borderRadius:10,padding:14,fontSize:".78rem",lineHeight:1.6,marginBottom:14,color:"#F0EAE0"}}>⚠️ {msg}{onRetry&&<button style={{...cs.gh,fontSize:".72rem",padding:"5px 12px",marginLeft:10}}onClick={onRetry}>Retry</button>}</div>;}
+function Prog({n}){
+  return <div style={{display:"flex",gap:6,marginBottom:"1.5rem"}}>{[1,2,3,4].map(i=><div key={i} style={{height:3,flex:1,borderRadius:2,background:i<=n?"#F4A017":"rgba(255,255,255,.09)",transition:"background .3s"}}/>)}</div>;
+}
+function Err({msg,onRetry}){
+  if(!msg) return null;
+  return <div style={{background:"rgba(192,81,58,.1)",border:"1px solid rgba(192,81,58,.3)",borderRadius:10,padding:14,fontSize:".78rem",lineHeight:1.6,marginBottom:14}}>
+    {"\u26a0\ufe0f "}{msg}
+    {onRetry&&<button style={{...cs.gh,fontSize:".72rem",padding:"5px 12px",marginLeft:10}} onClick={onRetry}>Retry</button>}
+  </div>;
+}
 
-// ── APP ──────────────────────────────────────────────────────
+// ── APP ───────────────────────────────────────────────────────
 function App(){
-  const [scr,setScr]=useState("setup"); // setup | pantry | prefs | dishes | building | results
-  const [proxy,setProxy]=useState(()=>localStorage.getItem("rasoi_proxy")||"");
-  const [pantry,setPantry]=useState(()=>JSON.parse(localStorage.getItem("r_pantry")||"[]"));
-  const [pInp,setPInp]=useState("");
-  const [avoid,setAvoid]=useState("");
-  const [tgTok,setTgTok]=useState(()=>localStorage.getItem("r_tgtok")||"");
-  const [tgCid,setTgCid]=useState(()=>localStorage.getItem("r_tgcid")||"");
-  const [dishes,setDishes]=useState([]);
-  const [approved,setApproved]=useState(new Set());
-  const [meals,setMeals]=useState([]);
-  const [shop,setShop]=useState({});
-  const [bSteps,setBSteps]=useState({b0:"idle",b1:"idle",b2:"idle"});
-  const [err,setErr]=useState("");
-  const [modal,setModal]=useState(null);
-  const [rec,setRec]=useState(null);
-  const [recLoad,setRecLoad]=useState(false);
-  const [missing,setMissing]=useState([]);
-  const [tgMsg,setTgMsg]=useState(null);
-  const [tgSend,setTgSend]=useState(false);
-  const [imgScan,setImgScan]=useState(false);
-  const [imgMsg,setImgMsg]=useState("");
-  const fileRef=useRef(null);
-  const cache=useRef({});
+  const [scr,    setScr]    = useState("setup");
+  const [proxy,  setProxy]  = useState(() => localStorage.getItem("rasoi_proxy")||"");
+  const [pantry, setPantry] = useState([]);
+  const [pInp,   setPInp]   = useState("");
+  const [avoid,  setAvoid]  = useState("");
+  const [tgTok,  setTgTok]  = useState("");
+  const [tgCid,  setTgCid]  = useState("");
+  const [dishes, setDishes] = useState([]);
+  const [approved,setApproved] = useState(new Set());
+  const [meals,  setMeals]  = useState([]);
+  const [shop,   setShop]   = useState({});
+  const [bSteps, setBSteps] = useState({b0:"idle",b1:"idle",b2:"idle",b3:"idle",b4:"idle"});
+  const [err,    setErr]    = useState("");
+  const [modal,  setModal]  = useState(null);
+  const [rec,    setRec]    = useState(null);
+  const [recLoad,setRecLoad]= useState(false);
+  const [missing,setMissing]= useState([]);
+  const [tgMsg,  setTgMsg]  = useState(null);
+  const [tgSend, setTgSend] = useState(false);
+  const [imgScan,setImgScan]= useState(false);
+  const [imgMsg, setImgMsg] = useState("");
+  const fileRef = useRef(null);
+  const cache   = useRef({});
 
-  useEffect(()=>{localStorage.setItem("r_pantry",JSON.stringify(pantry));},[pantry]);
-  useEffect(()=>{if(tgTok)localStorage.setItem("r_tgtok",tgTok);},[tgTok]);
-  useEffect(()=>{if(tgCid)localStorage.setItem("r_tgcid",tgCid);},[tgCid]);
+  // Load from server on startup
+  useEffect(()=>{
+    const saved = localStorage.getItem("rasoi_proxy");
+    if(!saved) return;
+    setProxy(saved);
+    serverLoad().then(d=>{
+      if(!d) return;
+      if(d.pantry?.length) setPantry(d.pantry);
+      if(d.tgTok) setTgTok(d.tgTok);
+      if(d.tgCid) setTgCid(d.tgCid);
+      if(d.avoid) setAvoid(d.avoid);
+      if(d.dishes?.length){ setDishes(d.dishes); setApproved(new Set(d.approved||d.dishes.map(x=>x.name))); }
+      if(d.meals?.length){ setMeals(d.meals); setShop(d.shop||{}); setScr("results"); }
+      else if(d.pantry?.length) setScr("pantry");
+    });
+  },[]);
 
-  const tgOk=!!(tgTok&&tgCid);
-  const addChip=v=>{const t=v.trim().replace(/,/g,"");if(t&&!pantry.includes(t))setPantry(p=>[...p,t]);};
-  const onKey=e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();addChip(pInp);setPInp("");}};
+  // Auto-save to server on changes
+  useEffect(()=>{
+    if(!proxy) return;
+    serverSave({pantry,meals,shop,tgTok,tgCid,avoid,dishes,approved:[...approved]});
+  },[pantry,meals,shop,dishes]);
+
+  const tgOk    = !!(tgTok&&tgCid);
+  const addChip = v => { const t=v.trim().replace(/,/g,""); if(t&&!pantry.includes(t)) setPantry(p=>[...p,t]); };
+  const onKey   = e => { if(e.key==="Enter"||e.key===","){e.preventDefault();addChip(pInp);setPInp("");} };
 
   function saveSetup(){
-    const url=proxy.trim();
-    if(!url){alert("Paste your Render proxy URL first");return;}
-    localStorage.setItem("rasoi_proxy",url);
-    if(tgTok) localStorage.setItem("r_tgtok",tgTok);
-    if(tgCid) localStorage.setItem("r_tgcid",tgCid);
+    if(!proxy.trim()){ alert("Paste your Render proxy URL first"); return; }
+    localStorage.setItem("rasoi_proxy", proxy.trim());
+    if(tgTok) localStorage.setItem("r_tgtok", tgTok);
+    if(tgCid) localStorage.setItem("r_tgcid", tgCid);
     setScr("pantry");
   }
 
+  // ── Pantry image scan ───────────────────────────────────────
   async function scanImage(e){
-    const file=e.target.files?.[0];if(!file)return;
-    setImgScan(true);setImgMsg("");
+    const file = e.target.files?.[0]; if(!file) return;
+    setImgScan(true); setImgMsg("");
     try{
-      const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);});
-      const found=await askVision(b64,file.type||"image/jpeg","Identify all food ingredients visible.\nReturn ONLY a JSON array of strings like: [\"Onion\",\"Rice\"]\nOnly clearly visible items.");
+      const b64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(",")[1]); r.onerror=rej; r.readAsDataURL(file); });
+      const found = await askVision(b64, file.type||"image/jpeg", "Identify all food ingredients visible. Return ONLY a JSON array of strings like [\"Onion\",\"Rice\"]. Only clearly visible items.");
       if(Array.isArray(found)&&found.length){
-        const newI=found.filter(i=>typeof i==="string"&&!pantry.includes(i));
+        const newI = found.filter(i=>typeof i==="string"&&!pantry.includes(i));
         setPantry(p=>[...p,...newI]);
-        setImgMsg(`✅ Found ${found.length} items — ${newI.length} added`);
-      }else setImgMsg("Nothing detected. Try a clearer photo.");
-    }catch(e){setImgMsg("❌ "+e.message);}
+        setImgMsg("Found "+found.length+" items, "+newI.length+" added");
+      } else setImgMsg("Nothing detected. Try a clearer photo.");
+    }catch(e){ setImgMsg("Error: "+e.message); }
     setImgScan(false);
-    if(fileRef.current)fileRef.current.value="";
+    if(fileRef.current) fileRef.current.value="";
   }
 
+  // ── Fetch dish suggestions ──────────────────────────────────
   async function fetchDishes(){
-    setScr("dishes");setErr("");setDishes([]);setApproved(new Set());
-    const ctx=`Indian nutritionist. ${HH}\nPantry: ${pantry.join(", ")||"basic Indian pantry"}. Avoid: ${avoid||"nothing"}.`;
-    const fmt=`[{"name":"Masoor Dal","emoji":"🍲","cat":"Lunch","isVeg":true,"prep":"25 min","prot_a":20,"prot_b":28}]`;
-    const rule="NEVER: khichdi, brinjal, lauki. No non-veg Tue/Thu. Protein-rich. Output ONLY the JSON array.";
-    const calls=[
-      `${ctx}\nSuggest exactly 5 protein-rich Indian LUNCH dishes for weekdays.\nFormat: ${fmt}\ncat must be "Lunch". ${rule}`,
-      `${ctx}\nSuggest exactly 5 protein-rich Indian DINNER dishes for weekdays.\nFormat: ${fmt}\ncat must be "Dinner". Thu option prep under 15min. ${rule}`,
+    setScr("dishes"); setErr(""); setDishes([]); setApproved(new Set());
+    const ctx = "Nutritionist meal planner.\n"+HH+"\nPantry: "+(pantry.join(", ")||"basic Indian pantry")+". Extra avoid: "+(avoid||"nothing")+".";
+    const fmt = '[{"name":"Quinoa Chicken Bowl","emoji":"🥗","cat":"Lunch","isVeg":false,"prep":"20 min","prot_a":28,"prot_b":38,"side":"100g curd","cuisine":"Mexican"}]';
+    const rule = "ALL dishes UNIQUE. No chapati. No maida. PCOS-safe. Add side field if protein is low. Output ONLY the JSON array.";
+    const calls = [
+      ctx+"\nSuggest exactly 4 protein-rich WEEKDAY LUNCH dishes (for Mon/Tue/Thu/Sun). Variety of cuisines. Format: "+fmt+"\ncat must be \"Lunch\". "+rule,
+      ctx+"\nSuggest exactly 2 TADKA LUNCH dishes using frozen Indian tadka base (onion+tomato+ginger+garlic). Quick, under 20 min. e.g. Chole, Rajma, Egg Curry, Chicken Curry. Format: "+fmt+"\ncat must be \"TadkaLunch\". "+rule,
+      ctx+"\nSuggest exactly 4 protein-rich WEEKDAY DINNER dishes (Mon/Tue/Wed/Thu). Max 1 dal dish. One must be under 15 min. Format: "+fmt+"\ncat must be \"Dinner\". "+rule,
+      ctx+"\nSuggest exactly 1 FRIDAY DINNER dish: exciting, special, indulgent. Both Shreya and Aayush eat. Non-veg ok. e.g. Butter Chicken, Thai Curry, Prawn Pasta. Format: "+fmt+"\ncat must be \"FriDinner\". "+rule,
+      ctx+"\nSuggest exactly 1 SATURDAY LUNCH dish: experimental, adventurous, new cuisine. e.g. Korean Bibimbap, Mexican Bowl, Japanese Ramen. Format: "+fmt+"\ncat must be \"SatLunch\". "+rule,
     ];
     try{
-      let all=[];
-      for(const p of calls){const res=await askArr(p,700);if(!Array.isArray(res))throw new Error("Bad response — retry");all=all.concat(res);}
-      if(!all.length)throw new Error("Empty list — retry");
-      setDishes(all);setApproved(new Set(all.map(d=>d.name)));
-    }catch(e){setErr(e.message);}
+      let all = [];
+      for(const p of calls){
+        const res = await askArr(p, 800);
+        if(!Array.isArray(res)) throw new Error("Bad response from AI, please retry");
+        all = all.concat(res);
+      }
+      if(!all.length) throw new Error("Empty list, please retry");
+      setDishes(all);
+      setApproved(new Set(all.map(d=>d.name)));
+    }catch(e){ setErr(e.message); }
   }
 
-  const toggleDish=name=>setApproved(prev=>{const n=new Set(prev);n.has(name)?n.delete(name):n.add(name);return n;});
+  const toggleDish = name => setApproved(prev=>{ const n=new Set(prev); n.has(name)?n.delete(name):n.add(name); return n; });
 
+  // ── Build week plan ─────────────────────────────────────────
   async function buildWeek(){
-    if(approved.size<4){setErr("Keep at least 4 dishes");return;}
-    setScr("building");setErr("");setBSteps({b0:"idle",b1:"idle",b2:"idle"});
-    const okL=[...approved].filter(n=>dishes.find(d=>d.name===n&&d.cat==="Lunch")).join(", ");
-    const okD=[...approved].filter(n=>dishes.find(d=>d.name===n&&d.cat==="Dinner")).join(", ");
-    const ptr=pantry.join(", ")||"basic Indian pantry";
-    const SCHEMA=`{"day":"Mon","meal":"Lunch","name":"Poha","emoji":"🥘","isVeg":true,"prep":"8 min","cal_a":310,"prot_a":12,"cal_b":390,"prot_b":18,"tagline":"Quick light bowl","forWhom":"both","portionNote":"One bowl each","leftover":null}`;
-    const BASE=`${HH}\nPantry: ${ptr}. Avoid: ${avoid||"nothing"}.\nReturn a JSON array. Schema: ${SCHEMA}\nforWhom="both"|"shreya_only". leftover=null or day. Tagline max 4 words.`;
-    const batches=[
-      {key:"b0",tok:800,extra:`Assign LUNCH for Mon,Tue,Wed,Thu,Fri (5 objects, meal="Lunch", forWhom="both"). Use: ${okL||okD}. Set leftover where applicable.`},
-      {key:"b1",tok:700,extra:`Assign DINNER for Mon,Tue,Wed,Thu ONLY (4 objects, meal="Dinner"). Use: ${okD||okL}. Mon/Tue/Thu: forWhom="shreya_only". Wed: forWhom="both". Thu prep under 15min.`},
+    if(approved.size<6){ setErr("Keep at least 6 dishes approved"); return; }
+    setScr("building"); setErr(""); setBSteps({b0:"idle",b1:"idle",b2:"idle",b3:"idle",b4:"idle"});
+    const bycat = cat => [...approved].filter(n=>dishes.find(d=>d.name===n&&d.cat===cat)).join(", ");
+    const okL  = bycat("Lunch"),  okTL = bycat("TadkaLunch");
+    const okD  = bycat("Dinner"), okFD = bycat("FriDinner"), okSL = bycat("SatLunch");
+    const ptr  = pantry.join(", ")||"basic Indian pantry";
+    const SCHEMA = '{"day":"Mon","meal":"Lunch","name":"Poha","emoji":"🍲","isVeg":true,"prep":"8 min","cal_a":310,"prot_a":28,"cal_b":390,"prot_b":42,"tagline":"Quick light bowl","forWhom":"both","side":"150g curd","leftover":null}';
+    const BASE = HH+"\nPantry: "+ptr+". Avoid: "+(avoid||"nothing")+".\nReturn JSON array. Schema: "+SCHEMA+"\nforWhom=\"both\"|\"shreya_only\". side=protein booster or null. Tagline max 4 words.";
+    const batches = [
+      {key:"b0",tok:800, p:BASE+"\nAssign LUNCH for Mon,Tue,Thu,Sun (4 objects, meal=\"Lunch\", forWhom=\"both\"). Use from: "+(okL||okD)},
+      {key:"b1",tok:600, p:BASE+"\nAssign Wed lunch (day=\"Wed\") and Fri lunch (day=\"Fri\") using TADKA dishes (2 objects, meal=\"Lunch\", forWhom=\"both\"). Use: "+(okTL||okL)},
+      {key:"b2",tok:800, p:BASE+"\nAssign DINNER for Mon,Tue,Wed,Thu (4 objects, meal=\"Dinner\"). Use: "+(okD)+". Mon/Tue/Thu: forWhom=\"shreya_only\". Wed: forWhom=\"both\". Thu prep under 15min."},
+      {key:"b3",tok:600, p:BASE+"\nAssign Fri dinner (day=\"Fri\",meal=\"Dinner\",forWhom=\"both\") from: "+(okFD||okD)+". AND Sat lunch (day=\"Sat\",meal=\"Lunch\",forWhom=\"both\") from: "+(okSL||okL)+". Return 2 objects."},
     ];
-    let all=[];
+    let all = [];
     try{
       for(const b of batches){
         setBSteps(p=>({...p,[b.key]:"active"}));
-        const res=await askArr(`${BASE}\n${b.extra}`,b.tok);
-        all=all.concat(Array.isArray(res)?res:[]);
+        const res = await askArr(b.p, b.tok);
+        all = all.concat(Array.isArray(res)?res:[]);
         setBSteps(p=>({...p,[b.key]:"done"}));
       }
-      setBSteps(p=>({...p,b2:"active"}));
-      const shopRes=await askObj(`Meals: ${all.map(m=>m.name).join(", ")}. Pantry EXCLUDE: ${ptr}.\nJSON only: {"Vegetables & Produce":[],"Dairy & Eggs":[],"Grains & Pulses":[],"Meat & Fish":[],"Oils & Spices":[],"Other":[]}`,700);
+      setBSteps(p=>({...p,b4:"active"}));
+      const shopRes = await askObj("Meals planned: "+all.map(m=>m.name).join(", ")+". Pantry already have, EXCLUDE from list: "+ptr+".\nJSON only: {\"Vegetables & Produce\":[],\"Dairy & Eggs\":[],\"Grains & Pulses\":[],\"Meat & Fish\":[],\"Oils & Spices\":[],\"Other\":[]}",700);
       setShop(typeof shopRes==="object"&&!Array.isArray(shopRes)?shopRes:{});
-      setBSteps(p=>({...p,b2:"done"}));
-      setMeals(all);setScr("results");
-    }catch(e){setErr(e.message);setScr("dishes");}
+      setBSteps(p=>({...p,b4:"done"}));
+      setMeals(all); setScr("results");
+    }catch(e){ setErr(e.message); setScr("dishes"); }
   }
 
+  // ── Missing ingredient check ────────────────────────────────
   function calcMissing(ings){
-    const ptL=pantry.map(p=>p.toLowerCase());
-    return ings.filter(i=>{const n=i.name.toLowerCase();return !ptL.some(p=>p.includes(n)||n.includes(p));}).map(i=>i.name);
+    const ptL = pantry.map(p=>p.toLowerCase());
+    return ings.filter(i=>{ const n=i.name.toLowerCase(); return !ptL.some(p=>p.includes(n)||n.includes(p)); }).map(i=>i.name);
   }
 
-  async function openMeal(m){
-    setModal(m);setRec(null);setMissing([]);setRecLoad(true);
-    const k=`${m.day}-${m.meal}-${m.name}`;
-    if(cache.current[k]){setRec(cache.current[k]);setMissing(calcMissing(cache.current[k].ingredients||[]));setRecLoad(false);return;}
+  // ── Meal modal ──────────────────────────────────────────────
+  function openMeal(m){
+    setModal(m); setRec(null); setMissing([]); setRecLoad(false);
+    const k = m.day+"-"+m.meal+"-"+m.name;
+    if(cache.current[k]){ setRec(cache.current[k]); setMissing(calcMissing(cache.current[k].ingredients||[])); }
+  }
+  async function fetchRecipe(m){
+    const k = m.day+"-"+m.meal+"-"+m.name;
+    if(cache.current[k]){ setRec(cache.current[k]); setMissing(calcMissing(cache.current[k].ingredients||[])); return; }
+    setRecLoad(true);
     try{
-      const who=m.forWhom==="shreya_only"?"1 person (Shreya 60kg yoga)":"2 people (Shreya 60kg yoga, Aayush 74kg gym)";
-      const res=await askObj(`Recipe for "${m.name}" for ${who}. JSON only:\n{"ingredients":[{"name":"Onion","qty":"1","unit":"medium"}],"instructions":"Step 1...\\nStep 2..."}`,900);
-      const rr=typeof res==="object"&&!Array.isArray(res)?res:{};
-      cache.current[k]=rr;setRec(rr);setMissing(calcMissing(rr.ingredients||[]));
-    }catch(e){setRec({ingredients:[],instructions:"Could not load: "+e.message});}
+      const who = m.forWhom==="shreya_only"?"1 person (Shreya, PCOS-friendly, high protein)":"2 people (Shreya PCOS-friendly 65g prot, Aayush gym 105g prot)";
+      const res = await askObj("Detailed recipe for \""+m.name+"\" for "+who+".\nPCOS rules: low-GI, no maida, no deep fry. Protein-rich.\nJSON only:\n{\"ingredients\":[{\"name\":\"Onion\",\"qty\":\"1\",\"unit\":\"medium\"}],\"instructions\":\"Step 1...\\nStep 2...\",\"proteinTip\":\"Add 100g curd for extra protein\"}",1000);
+      const rr = typeof res==="object"&&!Array.isArray(res)?res:{};
+      cache.current[k]=rr; setRec(rr); setMissing(calcMissing(rr.ingredients||[]));
+    }catch(e){ setRec({ingredients:[],instructions:"Could not load: "+e.message,proteinTip:null}); }
     setRecLoad(false);
   }
 
+  // ── Telegram ────────────────────────────────────────────────
   async function sendTg(){
-    if(!tgOk)return;
-    setTgSend(true);setTgMsg(null);
-    const byDay={};DAYS.forEach(d=>byDay[d]=[]);
-    meals.forEach(m=>{if(byDay[m.day])byDay[m.day].push(m);});
-    let plan="🗓 *WEEK — Shreya & Aayush*\n_(Lunch + Dinner | Fri+Sat dinner skipped)_\n\n";
+    if(!tgOk) return;
+    setTgSend(true); setTgMsg(null);
+    const byDay = {}; DAYS.forEach(d=>byDay[d]=[]);
+    meals.forEach(m=>{ if(byDay[m.day]) byDay[m.day].push(m); });
+    let plan = "🗓 *WEEK PLAN*\n_(Shreya & Aayush)_\n\n";
     DAYS.forEach((day,i)=>{
-      const ms=(byDay[day]||[]).sort((a,b)=>MEAL_ORDER.indexOf(a.meal)-MEAL_ORDER.indexOf(b.meal));
-      if(!ms.length)return;
-      plan+=`${i>=5?"🏖":"💼"} *${day}*\n`;
-      ms.forEach(m=>plan+=`  ${MEAL_ICON[m.meal]} ${m.meal}: ${m.emoji||""} ${m.name} _(${m.prep||"—"})_\n`);
-      plan+="\n";
+      const ms = (byDay[day]||[]).sort((a,b)=>MEAL_ORDER.indexOf(a.meal)-MEAL_ORDER.indexOf(b.meal));
+      if(!ms.length) return;
+      plan += (i>=5?"🏖":"💼")+" *"+day+"*\n";
+      ms.forEach(m=>plan+="  "+MEAL_ICON[m.meal]+" "+m.meal+": "+m.name+" _("+m.prep+")_\n");
+      plan += "\n";
     });
-    const hasI=Object.values(shop).some(a=>a&&a.length>0);
-    let shopTxt="🛒 *SHOPPING LIST*\n_Pantry excluded_\n\n";
-    if(hasI){for(const[cat,items]of Object.entries(shop)){if(!items?.length)continue;shopTxt+=`*${cat}*\n`;items.forEach(i=>shopTxt+=`  ▫️ ${i}\n`);shopTxt+="\n";}}
-    else shopTxt+="✅ Pantry covers everything!\n";
-    shopTxt+="\n_Rasoi — Shreya & Aayush_ 🌿";
-    const api=`https://api.telegram.org/bot${tgTok}/sendMessage`;
+    let shopTxt = "🛒 *SHOPPING LIST*\n_Pantry excluded_\n\n";
+    const hasI = Object.values(shop).some(a=>a&&a.length>0);
+    if(hasI){ for(const[cat,items] of Object.entries(shop)){ if(!items?.length) continue; shopTxt+="*"+cat+"*\n"; items.forEach(i=>shopTxt+="  - "+i+"\n"); shopTxt+="\n"; } }
+    else shopTxt += "Pantry covers everything!\n";
+    shopTxt += "\n_Rasoi_ 🌿";
+    const api = "https://api.telegram.org/bot"+tgTok+"/sendMessage";
     try{
-      for(const txt of[plan,shopTxt]){
-        const r=await fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:tgCid,text:txt,parse_mode:"Markdown"})});
-        const dd=await r.json();if(!dd.ok)throw new Error(dd.description);
+      for(const txt of [plan,shopTxt]){
+        const r = await fetch(api,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:tgCid,text:txt,parse_mode:"Markdown"})});
+        const dd = await r.json(); if(!dd.ok) throw new Error(dd.description);
       }
       setTgMsg("ok");
-    }catch(e){setTgMsg("err:"+e.message);}
+    }catch(e){ setTgMsg("err:"+e.message); }
     setTgSend(false);
   }
 
-  function weekDates(){const ws=new Date(),d=ws.getDay();ws.setDate(ws.getDate()-d+(d===0?-6:1));return Array.from({length:7},(_,i)=>{const x=new Date(ws);x.setDate(ws.getDate()+i);return x;});}
+  function weekDates(){
+    const ws=new Date(),d=ws.getDay(); ws.setDate(ws.getDate()-d+(d===0?-6:1));
+    return Array.from({length:7},(_,i)=>{ const x=new Date(ws); x.setDate(ws.getDate()+i); return x; });
+  }
 
-  const Header=({showBack})=>(
+  // ── Header ──────────────────────────────────────────────────
+  const Header = () => (
     <div style={{position:"sticky",top:0,zIndex:100,background:"rgba(13,11,9,.95)",backdropFilter:"blur(16px)",borderBottom:"1px solid rgba(255,255,255,.07)",padding:"0 1.4rem",display:"flex",alignItems:"center",justifyContent:"space-between",height:54}}>
-      <div style={{fontFamily:"Georgia,serif",fontSize:"1.4rem",fontStyle:"italic",color:"#F4A017"}}>Rasoi <sup style={{fontSize:".52rem",color:"#8A7E6E",fontStyle:"normal",fontFamily:"inherit",letterSpacing:".1em",textTransform:"uppercase",verticalAlign:"middle",marginLeft:5}}>Shreya & Aayush</sup></div>
+      <div style={{fontFamily:"Georgia,serif",fontSize:"1.4rem",fontStyle:"italic",color:"#F4A017"}}>Rasoi</div>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <button onClick={()=>setScr("setup")} style={{...cs.gh,padding:"4px 12px",fontSize:".7rem"}}>⚙️ Setup</button>
-        {tgOk&&<div style={{display:"flex",alignItems:"center",gap:5,fontSize:".65rem",color:"#2AABEE",padding:"3px 9px",borderRadius:10,border:"1px solid rgba(42,171,238,.2)"}}>📱 Telegram ✓</div>}
+        <button onClick={()=>setScr("setup")} style={{...cs.gh,padding:"4px 12px",fontSize:".7rem"}}>Setup</button>
+        {tgOk&&<div style={{fontSize:".65rem",color:"#2AABEE",padding:"3px 9px",borderRadius:10,border:"1px solid rgba(42,171,238,.2)"}}>Telegram</div>}
       </div>
     </div>
   );
-  const Wrap=({children})=>(
-    <div style={{background:"#0D0B09",minHeight:"100vh",color:"#F0EAE0",paddingBottom:"2.5rem"}}>
+  const Wrap = ({children}) => (
+    <div style={{background:"#0D0B09",minHeight:"100vh",paddingBottom:"2.5rem"}}>
       <Header/>
-      <div style={{maxWidth:860,margin:"0 auto",padding:"1.6rem 1.2rem"}}>{children}</div>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"1.6rem 1.2rem"}}>{children}</div>
     </div>
   );
 
-  // ── SETUP SCREEN ─────────────────────────────────────────
-  if(scr==="setup")return(
-    <div style={{background:"#0D0B09",minHeight:"100vh",color:"#F0EAE0",paddingBottom:"2.5rem"}}>
+  // ════════════════════════════════════════════════════════════
+  // SETUP
+  // ════════════════════════════════════════════════════════════
+  if(scr==="setup") return (
+    <div style={{background:"#0D0B09",minHeight:"100vh",paddingBottom:"2rem"}}>
       <div style={{background:"rgba(13,11,9,.95)",borderBottom:"1px solid rgba(255,255,255,.07)",padding:"0 1.4rem",display:"flex",alignItems:"center",height:54}}>
         <div style={{fontFamily:"Georgia,serif",fontSize:"1.4rem",fontStyle:"italic",color:"#F4A017"}}>Rasoi</div>
       </div>
       <div style={{maxWidth:520,margin:"0 auto",padding:"2rem 1.2rem"}}>
-        <div style={{...cs.card}}>
-          <div style={{fontFamily:"Georgia,serif",fontSize:"1.5rem",marginBottom:6}}>⚙️ <em style={{color:"#F4A017"}}>Setup</em></div>
-          <p style={{fontSize:".79rem",color:"#8A7E6E",lineHeight:1.7,marginBottom:"1.4rem"}}>
-            This app needs a small proxy server to talk to Claude (browsers block direct API calls). Deploy one free on Render in ~3 minutes — instructions below.
-          </p>
-
-          {/* Proxy URL */}
-          <div style={{marginBottom:18}}>
-            <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".12em",color:"#F4A017",fontWeight:600,marginBottom:6}}>
-              Proxy Server URL <span style={{color:"#C0513A"}}>★ required</span>
-            </div>
-            <input
-              value={proxy} onChange={e=>setProxy(e.target.value)}
-              placeholder="https://rasoi-proxy-xxxx.onrender.com"
-              style={{...cs.inp,fontFamily:"monospace",fontSize:".74rem",marginBottom:6}}
-            />
-            <div style={{fontSize:".62rem",color:"#4A4238"}}>Deploy the proxy from the <code style={{color:"#8A7E6E"}}>rasoi-proxy/</code> folder — see instructions below.</div>
+        <div style={cs.card}>
+          <div style={{fontFamily:"Georgia,serif",fontSize:"1.5rem",marginBottom:6}}>Setup <em style={{color:"#F4A017"}}>Rasoi</em></div>
+          <p style={{fontSize:".79rem",color:"#8A7E6E",lineHeight:1.7,marginBottom:"1.4rem"}}>This app uses a proxy server to call Claude. Deploy the included server.js free on Render, then paste the URL below.</p>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".12em",color:"#F4A017",fontWeight:600,marginBottom:6}}>Proxy URL (required)</div>
+            <input value={proxy} onChange={e=>setProxy(e.target.value)} placeholder="https://rasoi-proxy-xxxx.onrender.com" style={{...cs.inp,fontFamily:"monospace",fontSize:".74rem"}}/>
           </div>
-
-          {/* Telegram — optional */}
-          <div style={{background:"rgba(42,171,238,.05)",border:"1px solid rgba(42,171,238,.15)",borderRadius:10,padding:"1rem",marginBottom:18}}>
-            <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".12em",color:"#2AABEE",fontWeight:600,marginBottom:8}}>
-              📱 Telegram <span style={{color:"#4A4238",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:".65rem"}}> — optional, leave blank to skip</span>
-            </div>
+          <div style={{background:"rgba(42,171,238,.05)",border:"1px solid rgba(42,171,238,.12)",borderRadius:10,padding:"1rem",marginBottom:16}}>
+            <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".1em",color:"#2AABEE",fontWeight:600,marginBottom:8}}>Telegram (optional)</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[["Bot Token","password",tgTok,setTgTok,"7312…:AAF…"],["Chat ID","text",tgCid,setTgCid,"912345678"]].map(([lbl,type,val,set,ph])=>(
+              {[["Bot Token",tgTok,setTgTok,"7312...:AAF..."],["Chat ID",tgCid,setTgCid,"912345678"]].map(([lbl,val,set,ph])=>(
                 <div key={lbl}>
-                  <div style={{fontSize:".57rem",textTransform:"uppercase",color:"#8A7E6E",marginBottom:4}}>{lbl}</div>
-                  <input type={type} value={val} onChange={e=>set(e.target.value)} placeholder={ph} style={{...cs.inp,background:"rgba(0,0,0,.3)",border:"1px solid rgba(42,171,238,.18)"}}/>
+                  <div style={{fontSize:".57rem",color:"#8A7E6E",marginBottom:4}}>{lbl}</div>
+                  <input type="text" value={val} onChange={e=>set(e.target.value)} placeholder={ph} style={{...cs.inp,background:"rgba(0,0,0,.3)"}}/>
                 </div>
               ))}
             </div>
-            <div style={{fontSize:".62rem",color:"#4A4238",marginTop:8}}>Token from <strong style={{color:"#8A7E6E"}}>@BotFather</strong> · Chat ID from <strong style={{color:"#8A7E6E"}}>@userinfobot</strong>. Lets you receive the meal plan on your phone.</div>
           </div>
-
-          <button style={cs.sf} onClick={saveSetup}>Save & Start →</button>
-
-          {/* Deploy instructions */}
-          <div style={{borderTop:"1px solid rgba(255,255,255,.07)",marginTop:24,paddingTop:20}}>
-            <div style={{fontSize:".7rem",fontWeight:600,color:"#F0EAE0",marginBottom:12}}>How to deploy the proxy (free, ~3 min)</div>
-            {[
-              ["1","Go to","render.com","and create a free account"],
-              ["2","New → Web Service → choose","Public Git repo","or upload the","rasoi-proxy/","folder"],
-              ["3","Build command:","npm install","· Start command:","node server.js"],
-              ["4","Add Environment Variable:","ANTHROPIC_API_KEY","= your key from","console.anthropic.com"],
-              ["5","Deploy. Copy the URL (e.g.","https://rasoi-proxy-xxxx.onrender.com",") and paste it above"],
-            ].map(([num,...parts])=>(
-              <div key={num} style={{display:"flex",gap:10,marginBottom:10,fontSize:".73rem",lineHeight:1.6}}>
-                <div style={{width:20,height:20,borderRadius:"50%",background:"rgba(244,160,23,.15)",color:"#F4A017",fontWeight:700,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:".65rem",marginTop:1}}>{num}</div>
-                <div style={{color:"#8A7E6E"}}>{parts.map((p,i)=>p.startsWith("http")||["npm install","node server.js","ANTHROPIC_API_KEY","rasoi-proxy/","console.anthropic.com","render.com","@BotFather","@userinfobot","Public Git repo"].includes(p)?<code key={i} style={{color:"#F4A017",background:"rgba(244,160,23,.08)",padding:"0 4px",borderRadius:3}}>{p}</code>:<span key={i}> {p} </span>)}</div>
-              </div>
-            ))}
-            <div style={{background:"rgba(92,158,106,.07)",border:"1px solid rgba(92,158,106,.2)",borderRadius:8,padding:"8px 12px",fontSize:".68rem",color:"#5C9E6A",marginTop:8}}>
-              💡 Free Render services sleep after 15 min inactivity — first request may take 30s to wake. Set up <strong>UptimeRobot.com</strong> (free) to ping your URL every 5 min to keep it awake.
-            </div>
+          <button style={cs.sf} onClick={saveSetup}>Save & Start</button>
+          <div style={{borderTop:"1px solid rgba(255,255,255,.07)",marginTop:20,paddingTop:16,fontSize:".72rem",color:"#8A7E6E",lineHeight:1.8}}>
+            <strong style={{color:"#F0EAE0"}}>Render deploy steps:</strong><br/>
+            1. Push rasoi-proxy folder to GitHub<br/>
+            2. Render → New Web Service → connect repo<br/>
+            3. Build: <code style={{color:"#F4A017"}}>npm install</code> | Start: <code style={{color:"#F4A017"}}>node server.js</code><br/>
+            4. Add env var: <code style={{color:"#F4A017"}}>ANTHROPIC_API_KEY</code> + <code style={{color:"#F4A017"}}>MONGODB_URI</code><br/>
+            5. Copy the .onrender.com URL above
           </div>
         </div>
       </div>
     </div>
   );
 
-  // ── PANTRY ───────────────────────────────────────────────
-  if(scr==="pantry")return(
+  // ════════════════════════════════════════════════════════════
+  // PANTRY
+  // ════════════════════════════════════════════════════════════
+  if(scr==="pantry") return (
     <Wrap>
       <div style={{...cs.card,animation:"fu .3s ease"}}>
         <Prog n={1}/>
         <div style={{fontFamily:"Georgia,serif",fontSize:"1.55rem",marginBottom:6}}>What's in your <em style={{color:"#F4A017"}}>pantry?</em></div>
-        <p style={{fontSize:".79rem",color:"#8A7E6E",marginBottom:"1.2rem",lineHeight:1.6}}>Type ingredients or scan a photo — AI reads what's visible.</p>
+        <p style={{fontSize:".79rem",color:"#8A7E6E",marginBottom:"1.2rem",lineHeight:1.6}}>Add ingredients manually or scan a photo.</p>
         <div style={{background:"rgba(244,160,23,.05)",border:"1px dashed rgba(244,160,23,.3)",borderRadius:12,padding:"1rem",marginBottom:"1.1rem",textAlign:"center"}}>
-          <div style={{fontSize:".8rem",fontWeight:500,color:"#F0EAE0",marginBottom:4}}>📸 Scan fridge / pantry shelf</div>
-          <div style={{fontSize:".7rem",color:"#8A7E6E",marginBottom:10}}>Upload a photo — AI detects ingredients automatically</div>
+          <div style={{fontSize:".8rem",fontWeight:500,marginBottom:4}}>Scan fridge or pantry shelf</div>
+          <div style={{fontSize:".7rem",color:"#8A7E6E",marginBottom:10}}>Upload a photo — AI detects ingredients</div>
           <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={scanImage}/>
           <button style={{...cs.sf,fontSize:".76rem",padding:"7px 18px",background:imgScan?"#6A6050":"#F4A017"}} onClick={()=>fileRef.current?.click()} disabled={imgScan}>
-            {imgScan?"🔍 Scanning…":"📷 Upload / Take Photo"}
+            {imgScan?"Scanning...":"Take / Upload Photo"}
           </button>
           {imgScan&&<div style={{marginTop:10}}><Spin s={22}/></div>}
-          {imgMsg&&<div style={{marginTop:8,fontSize:".72rem",color:imgMsg.startsWith("✅")?"#5C9E6A":"#C0513A"}}>{imgMsg}</div>}
+          {imgMsg&&<div style={{marginTop:8,fontSize:".72rem",color:imgMsg.startsWith("Found")?"#5C9E6A":"#C0513A"}}>{imgMsg}</div>}
         </div>
         <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".12em",color:"#8A7E6E",fontWeight:600,marginBottom:7}}>Your ingredients ({pantry.length})</div>
         <div style={{background:"#221E19",border:"1px solid rgba(255,255,255,.12)",borderRadius:11,padding:8,minHeight:56,display:"flex",flexWrap:"wrap",gap:6,cursor:"text",marginBottom:4}} onClick={()=>document.getElementById("pinp")?.focus()}>
           {pantry.map((item,i)=>(
             <div key={i} style={{background:"rgba(244,160,23,.13)",border:"1px solid rgba(244,160,23,.25)",color:"#F4A017",fontSize:".7rem",fontWeight:500,padding:"2px 8px",borderRadius:10,display:"flex",alignItems:"center",gap:4}}>
-              {item}<button onClick={e=>{e.stopPropagation();setPantry(p=>p.filter((_,j)=>j!==i));}} style={{background:"none",border:"none",color:"#F4A017",cursor:"pointer",fontSize:".78rem",opacity:.6,padding:0,lineHeight:1}}>×</button>
+              {item}<button onClick={e=>{e.stopPropagation();setPantry(p=>p.filter((_,j)=>j!==i));}} style={{background:"none",border:"none",color:"#F4A017",cursor:"pointer",fontSize:".78rem",padding:0}}>x</button>
             </div>
           ))}
-          <input id="pinp" value={pInp} onChange={e=>setPInp(e.target.value)} onKeyDown={onKey} placeholder={pantry.length?"":"Type ingredient, Enter to add…"} style={{background:"none",border:"none",outline:"none",color:"#F0EAE0",fontFamily:"inherit",fontSize:".78rem",minWidth:90,flex:1}}/>
+          <input id="pinp" value={pInp} onChange={e=>setPInp(e.target.value)} onKeyDown={onKey} placeholder={pantry.length?"":"Type ingredient, Enter to add"} style={{background:"none",border:"none",outline:"none",color:"#F0EAE0",fontFamily:"inherit",fontSize:".78rem",minWidth:90,flex:1}}/>
         </div>
-        <div style={{fontSize:".63rem",color:"#4A4238",marginBottom:14}}>Press <strong>Enter</strong> or <strong>,</strong> to add</div>
-        <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".12em",color:"#8A7E6E",fontWeight:600,marginBottom:7}}>Tap to add staples</div>
+        <div style={{fontSize:".63rem",color:"#4A4238",marginBottom:14}}>Press Enter or comma to add</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:"1.4rem"}}>
-          {PANTRY_OPTS.filter(i=>!pantry.includes(i)).slice(0,30).map(i=>(
+          {PANTRY_OPTS.filter(i=>!pantry.includes(i)).map(i=>(
             <button key={i} onClick={()=>addChip(i)} style={{padding:"2px 9px",borderRadius:10,border:"1px solid rgba(255,255,255,.1)",background:"transparent",color:"#8A7E6E",fontSize:".65rem",cursor:"pointer",fontFamily:"inherit"}}>{i}</button>
           ))}
         </div>
-        <button style={cs.sf} onClick={()=>setScr("prefs")}>Next →</button>
+        <button style={cs.sf} onClick={()=>setScr("prefs")}>Next</button>
       </div>
     </Wrap>
   );
 
-  // ── PREFS ────────────────────────────────────────────────
-  if(scr==="prefs")return(
+  // ════════════════════════════════════════════════════════════
+  // PREFS
+  // ════════════════════════════════════════════════════════════
+  if(scr==="prefs") return (
     <Wrap>
       <div style={{...cs.card,animation:"fu .3s ease"}}>
         <Prog n={2}/>
         <div style={{fontFamily:"Georgia,serif",fontSize:"1.55rem",marginBottom:6}}>Your <em style={{color:"#F4A017"}}>household</em></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:"1.2rem"}}>
           {[
-            {n:"Shreya 🧘‍♀️",tag:"60 kg · Yoga",stats:[["Protein","65–70g/day"],["No non-veg","Tue & Thu"]],notes:[{c:"#F4A017",t:"Solo dinners: Mon · Tue · Thu"},{c:"#C0513A",t:"Thu dinner ≤ 15 min"}]},
-            {n:"Aayush 🏋️",tag:"74 kg · Gym",stats:[["Protein","100–110g/day"],["Office dinner","Mon · Tue · Thu"]],notes:[{c:"#5C9E6A",t:"Together: Wed · Fri · Sat · Sun"}]},
+            {n:"Shreya",tag:"60kg · Yoga · PCOS",lines:["Protein 65-70g/day","No non-veg Tue & Thu","Solo dinners: Mon, Tue, Thu","Thu dinner under 15 min"],col:"#F4A017"},
+            {n:"Aayush",tag:"74kg · Gym",lines:["Protein 100-110g/day","Office dinner Mon, Tue, Thu","Together: Wed, Fri, Sat, Sun"],col:"#5C9E6A"},
           ].map(p=>(
             <div key={p.n} style={{background:"#221E19",border:"1px solid rgba(255,255,255,.07)",borderRadius:11,padding:"0.85rem"}}>
-              <div style={{fontFamily:"Georgia,serif",fontSize:"1rem",color:"#F4A017",marginBottom:6}}>{p.n}</div>
-              <span style={{display:"inline-block",fontSize:".57rem",padding:"2px 7px",borderRadius:7,background:"rgba(244,160,23,.13)",color:"#F4A017",marginBottom:7}}>{p.tag}</span>
-              {p.stats.map(([k,v])=><div key={k} style={{fontSize:".7rem",color:"#8A7E6E",marginBottom:3}}>{k}: <strong style={{color:"#F0EAE0"}}>{v}</strong></div>)}
-              {p.notes.map(nn=><div key={nn.t} style={{fontSize:".66rem",color:nn.c,marginTop:4}}>{nn.t}</div>)}
+              <div style={{fontFamily:"Georgia,serif",fontSize:".95rem",color:p.col,marginBottom:5}}>{p.n}</div>
+              <span style={{display:"inline-block",fontSize:".57rem",padding:"2px 7px",borderRadius:7,background:"rgba(244,160,23,.1)",color:"#F4A017",marginBottom:8}}>{p.tag}</span>
+              {p.lines.map(l=><div key={l} style={{fontSize:".68rem",color:"#8A7E6E",marginBottom:3}}>{l}</div>)}
             </div>
           ))}
         </div>
-        <div style={{background:"rgba(92,158,106,.07)",border:"1px solid rgba(92,158,106,.2)",borderRadius:9,padding:"8px 12px",fontSize:".7rem",color:"#8A7E6E",marginBottom:"1rem"}}>
-          ✅ <strong style={{color:"#5C9E6A"}}>Skipped:</strong> All breakfasts · Friday dinner · Saturday dinner
+        <div style={{background:"rgba(92,158,106,.07)",border:"1px solid rgba(92,158,106,.2)",borderRadius:9,padding:"10px 14px",fontSize:".7rem",color:"#8A7E6E",marginBottom:"1rem",lineHeight:1.7}}>
+          This week: Mon-Fri lunch · Mon-Thu dinner · Fri dinner (special) · Sat lunch (experimental) · Sun lunch+dinner
         </div>
-        <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".12em",color:"#8A7E6E",fontWeight:600,marginBottom:7}}>Anything extra to avoid? <span style={{color:"#4A4238",fontWeight:400,textTransform:"none",letterSpacing:0}}>(optional)</span></div>
-        <input style={{...cs.inp,marginBottom:"1.2rem"}} value={avoid} onChange={e=>setAvoid(e.target.value)} placeholder="e.g. less oil, no fried food…"/>
+        <div style={{fontSize:".61rem",textTransform:"uppercase",letterSpacing:".12em",color:"#8A7E6E",fontWeight:600,marginBottom:7}}>Anything extra to avoid?</div>
+        <input style={{...cs.inp,marginBottom:"1.2rem"}} value={avoid} onChange={e=>setAvoid(e.target.value)} placeholder="e.g. no mushrooms, less oil... (optional)"/>
         <div style={{display:"flex",gap:10}}>
-          <button style={cs.sf} onClick={fetchDishes}>Show Dish Options →</button>
-          <button style={cs.gh} onClick={()=>setScr("pantry")}>← Back</button>
+          <button style={cs.sf} onClick={fetchDishes}>Show Dish Options</button>
+          <button style={cs.gh} onClick={()=>setScr("pantry")}>Back</button>
         </div>
       </div>
     </Wrap>
   );
 
-  // ── DISHES ───────────────────────────────────────────────
-  if(scr==="dishes")return(
+  // ════════════════════════════════════════════════════════════
+  // DISHES
+  // ════════════════════════════════════════════════════════════
+  if(scr==="dishes") return (
     <Wrap>
       <div style={{...cs.card,animation:"fu .3s ease"}}>
         <Prog n={3}/>
-        <div style={{fontFamily:"Georgia,serif",fontSize:"1.55rem",marginBottom:6}}>Approve your <em style={{color:"#F4A017"}}>10 dishes</em></div>
-        <p style={{fontSize:".79rem",color:"#8A7E6E",marginBottom:"1.2rem",lineHeight:1.6}}>5 lunches + 5 dinners. Tap any to remove it.</p>
+        <div style={{fontFamily:"Georgia,serif",fontSize:"1.55rem",marginBottom:6}}>Approve your <em style={{color:"#F4A017"}}>dishes</em></div>
+        <p style={{fontSize:".79rem",color:"#8A7E6E",marginBottom:"1.2rem",lineHeight:1.6}}>Tap any dish to remove it. Keep at least 6.</p>
         <Err msg={err} onRetry={fetchDishes}/>
-        {!dishes.length&&!err&&<div style={{textAlign:"center",padding:"2.5rem"}}><Spin/><p style={{color:"#8A7E6E",fontSize:".78rem",marginTop:12}}>Fetching suggestions…</p></div>}
+        {!dishes.length&&!err&&<div style={{textAlign:"center",padding:"2.5rem"}}><Spin/><p style={{color:"#8A7E6E",fontSize:".78rem",marginTop:12}}>Fetching suggestions (5 calls)...</p></div>}
         {dishes.length>0&&(<>
           <div style={{fontSize:".7rem",color:"#8A7E6E",marginBottom:12}}><strong style={{color:"#5C9E6A"}}>{approved.size}</strong> of {dishes.length} selected</div>
-          {["Lunch","Dinner"].map(cat=>{
-            const cd=dishes.filter(d=>d.cat===cat);if(!cd.length)return null;
-            return(<div key={cat} style={{marginBottom:14}}>
-              <div style={{fontSize:".6rem",textTransform:"uppercase",letterSpacing:".12em",color:cat==="Lunch"?"#5C9E6A":"#F4A017",fontWeight:700,marginBottom:7}}>{cat==="Lunch"?"🌤":"🌙"} {cat}</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:7}}>
-                {cd.map((d,i)=>{const on=approved.has(d.name);return(
-                  <div key={i} onClick={()=>toggleDish(d.name)} style={{background:on?"rgba(92,158,106,.07)":"rgba(192,81,58,.05)",border:`1px solid ${on?"rgba(92,158,106,.4)":"rgba(192,81,58,.3)"}`,borderRadius:9,padding:"10px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,opacity:on?1:0.45,transition:"all .15s"}}>
-                    <div style={{fontSize:"1.2rem",flexShrink:0}}>{d.emoji||"🍽️"}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:".73rem",fontWeight:500,color:"#F0EAE0",lineHeight:1.3}}>{d.name}</div>
-                      <div style={{fontSize:".58rem",color:"#8A7E6E",marginTop:2}}>{d.prep} · {d.prot_a}g prot</div>
+          {Object.keys(CAT_META).map(cat=>{
+            const cd = dishes.filter(d=>d.cat===cat); if(!cd.length) return null;
+            const {label,color} = CAT_META[cat];
+            return (
+              <div key={cat} style={{marginBottom:16}}>
+                <div style={{fontSize:".6rem",textTransform:"uppercase",letterSpacing:".12em",color:color,fontWeight:700,marginBottom:8}}>{label}</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(175px,1fr))",gap:7}}>
+                  {cd.map((d,i)=>{ const on=approved.has(d.name); return (
+                    <div key={i} onClick={()=>toggleDish(d.name)} style={{background:on?"rgba(92,158,106,.07)":"rgba(192,81,58,.05)",border:"1px solid "+(on?"rgba(92,158,106,.4)":"rgba(192,81,58,.3)"),borderRadius:9,padding:"10px 12px",cursor:"pointer",opacity:on?1:0.45,transition:"all .15s"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{fontSize:"1.2rem",flexShrink:0}}>{d.emoji||"🍽"}</div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:".73rem",fontWeight:500,color:"#F0EAE0",lineHeight:1.3}}>{d.name}</div>
+                          <div style={{fontSize:".58rem",color:"#8A7E6E",marginTop:2,display:"flex",gap:4,flexWrap:"wrap"}}>
+                            <span>{d.prep}</span><span style={{color:"#F4A017"}}>{d.prot_a}g prot</span>
+                            {d.cuisine&&d.cuisine!=="Indian"&&<span style={{color:"#2AABEE"}}>{d.cuisine}</span>}
+                          </div>
+                        </div>
+                        <div style={{fontSize:".72rem",flexShrink:0,color:on?"#5C9E6A":"#C0513A",fontWeight:700}}>{on?"✓":"x"}</div>
+                      </div>
+                      {d.side&&<div style={{fontSize:".58rem",color:"#5C9E6A",background:"rgba(92,158,106,.08)",borderRadius:5,padding:"2px 6px",marginTop:5}}>+{d.side}</div>}
                     </div>
-                    <div style={{fontSize:".72rem",flexShrink:0,color:on?"#5C9E6A":"#C0513A",fontWeight:700}}>{on?"✓":"✕"}</div>
-                  </div>
-                );})}
+                  );})}
+                </div>
               </div>
-            </div>);
+            );
           })}
         </>)}
         <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:4}}>
-          <button style={{...cs.sf,opacity:approved.size<4||!dishes.length?.35:1}} disabled={approved.size<4||!dishes.length} onClick={buildWeek}>Build My Week →</button>
-          <button style={cs.gh} onClick={()=>setScr("prefs")}>← Back</button>
+          <button style={{...cs.sf,opacity:approved.size<6||!dishes.length?.35:1}} disabled={approved.size<6||!dishes.length} onClick={buildWeek}>Build My Week</button>
+          <button style={cs.gh} onClick={()=>setScr("prefs")}>Back</button>
         </div>
       </div>
     </Wrap>
   );
 
-  // ── BUILDING ─────────────────────────────────────────────
-  if(scr==="building")return(
+  // ════════════════════════════════════════════════════════════
+  // BUILDING
+  // ════════════════════════════════════════════════════════════
+  if(scr==="building") return (
     <Wrap>
       <div style={{...cs.card,textAlign:"center",padding:"2.5rem 1rem"}}>
-        <Spin size={42}/><p style={{color:"#8A7E6E",fontSize:".84rem",margin:"14px 0 4px"}}>Building your week…</p>
+        <Spin size={42}/>
+        <p style={{color:"#8A7E6E",fontSize:".84rem",margin:"14px 0 4px"}}>Building your week...</p>
         <div style={{marginTop:16,display:"inline-flex",flexDirection:"column",gap:8,textAlign:"left"}}>
-          {[["b0","Weekday lunches (Mon–Fri)"],["b1","Weekday dinners (Mon–Thu)"],["b2","Shopping list"]].map(([k,lbl])=>(
+          {[["b0","Lunches (Mon/Tue/Thu/Sun)"],["b1","Wed & Fri tadka lunches"],["b2","Weekday dinners (Mon-Thu)"],["b3","Fri dinner + Sat lunch"],["b4","Shopping list"]].map(([k,lbl])=>(
             <div key={k} style={{display:"flex",alignItems:"center",gap:10,fontSize:".73rem",color:bSteps[k]==="done"?"#5C9E6A":bSteps[k]==="active"?"#F0EAE0":"#4A4238",transition:"color .3s"}}>
-              <span>{bSteps[k]==="done"?"✅":bSteps[k]==="active"?"⚙️":"⏳"}</span><span>{lbl}</span>
+              <span>{bSteps[k]==="done"?"OK":bSteps[k]==="active"?"...":"wait"}</span><span>{lbl}</span>
             </div>
           ))}
         </div>
@@ -442,125 +522,168 @@ function App(){
     </Wrap>
   );
 
-  // ── RESULTS ──────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════
+  // RESULTS
+  // ════════════════════════════════════════════════════════════
   if(scr==="results"){
-    const dates=weekDates();
-    const byDay={};DAYS.forEach(d=>byDay[d]=[]);meals.forEach(m=>{if(byDay[m.day]&&!SKIP[`${m.day}-${m.meal}`])byDay[m.day].push(m);});
-    let pa=0,pb=0;meals.forEach(m=>{pa+=(m.prot_a||0);pb+=(m.prot_b||m.prot_a||0);});
-    const ga=68,gb=105,aa=Math.round(pa/7),ab=Math.round(pb/7);
-    const pca=Math.min(100,Math.round(aa/ga*100)),pcb=Math.min(100,Math.round(ab/gb*100));
-    return(<Wrap>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.1rem",flexWrap:"wrap",gap:10}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:"1.7rem"}}>Your <em style={{color:"#F4A017",fontStyle:"italic"}}>Week</em></div>
-        <button style={{...cs.gh,fontSize:".7rem",padding:"5px 12px"}} onClick={()=>{setScr("pantry");setMeals([]);setShop({});}}>↩ Replan</button>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:"1.1rem"}}>
-        {[["Shreya 🧘‍♀️",aa,ga,pca],["Aayush 🏋️",ab,gb,pcb]].map(([who,avg,goal,pct])=>{
-          const col=pct>=88?"#5C9E6A":pct>=68?"#F4A017":"#C0513A";
-          return(<div key={who} style={{background:"#1C1814",border:"1px solid rgba(255,255,255,.07)",borderRadius:10,padding:12}}>
-            <div style={{fontSize:".59rem",textTransform:"uppercase",letterSpacing:".1em",color:"#8A7E6E",marginBottom:6}}>{who}</div>
-            <div style={{fontFamily:"Georgia,serif",fontSize:"1.3rem",fontWeight:600,color:"#F4A017"}}>{avg}g <span style={{fontSize:".7rem",color:"#8A7E6E",fontWeight:400}}>avg/day</span></div>
-            <div style={{fontSize:".62rem",color:"#8A7E6E",marginTop:3}}>Goal {goal}g — {pct>=88?"✅ On track":pct>=68?"⚠️ Nearly there":"❌ Low"}</div>
-            <div style={{height:4,background:"rgba(255,255,255,.07)",borderRadius:2,marginTop:8,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:2,transition:"width .6s"}}/></div>
-          </div>);
-        })}
-      </div>
-      <div style={{overflowX:"auto",marginBottom:"1.1rem"}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(90px,1fr))",gap:5}}>
-          {DAYS.map((day,i)=>{
-            const ms=(byDay[day]||[]).sort((a,b)=>MEAL_ORDER.indexOf(a.meal)-MEAL_ORDER.indexOf(b.meal));
-            const we=i>=5;
-            return(<div key={day} style={{display:"flex",flexDirection:"column",gap:4}}>
-              <div style={{borderRadius:7,padding:"5px 4px",textAlign:"center",background:we?"rgba(244,160,23,.12)":"#221E19",border:we?"1px solid rgba(244,160,23,.18)":"1px solid transparent"}}>
-                <div style={{fontSize:".51rem",textTransform:"uppercase",letterSpacing:".1em",color:"#8A7E6E"}}>{day}</div>
-                <div style={{fontFamily:"Georgia,serif",fontSize:"1.05rem",color:"#F0EAE0"}}>{dates[i].getDate()}</div>
-              </div>
-              {ms.map(m=>{const[bg,bd]=MEAL_BG[m.meal]||MEAL_BG.Lunch;return(
-                <div key={m.meal} onClick={()=>openMeal(m)} style={{borderRadius:7,padding:"6px",border:`1px solid ${bd}`,background:bg,cursor:"pointer",transition:"transform .15s"}}
-                  onMouseEnter={e=>e.currentTarget.style.transform="translateY(-1px)"}
-                  onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-                  <div style={{fontSize:".48rem",textTransform:"uppercase",color:"#4A4238"}}>{MEAL_ICON[m.meal]}</div>
-                  <div style={{fontSize:".75rem"}}>{m.emoji||"🍽️"}</div>
-                  <div style={{fontSize:".56rem",fontWeight:500,color:"#F0EAE0",lineHeight:1.25,marginTop:2}}>{m.name}</div>
+    const dates = weekDates();
+    const byDay = {}; DAYS.forEach(d=>byDay[d]=[]);
+    meals.forEach(m=>{ if(byDay[m.day]) byDay[m.day].push(m); });
+
+    // Protein tracking — sum across all meals vs weekly goal
+    let pa=0, pb=0;
+    meals.forEach(m=>{ pa+=(m.prot_a||0); pb+=(m.prot_b||m.prot_a||0); });
+    const mealDays = Math.max(new Set(meals.map(m=>m.day)).size, 1);
+    const ga=67, gb=105;
+    const weekGoalA = ga*mealDays, weekGoalB = gb*mealDays;
+    const avgA = Math.round(pa/mealDays), avgB = Math.round(pb/mealDays);
+    const pca = Math.min(100,Math.round(pa/weekGoalA*100));
+    const pcb = Math.min(100,Math.round(pb/weekGoalB*100));
+
+    return (
+      <Wrap>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.1rem",flexWrap:"wrap",gap:10}}>
+          <div style={{fontFamily:"Georgia,serif",fontSize:"1.7rem"}}>Your <em style={{color:"#F4A017",fontStyle:"italic"}}>Week</em></div>
+          <button style={{...cs.gh,fontSize:".7rem",padding:"5px 12px"}} onClick={()=>{setScr("pantry");setMeals([]);setShop({});}}>Replan</button>
+        </div>
+
+        {/* Protein cards */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:"1.1rem"}}>
+          {[["Shreya",avgA,ga,pca],["Aayush",avgB,gb,pcb]].map(([who,avg,goal,pct])=>{
+            const col = pct>=90?"#5C9E6A":pct>=70?"#F4A017":"#C0513A";
+            return (
+              <div key={who} style={{background:"#1C1814",border:"1px solid rgba(255,255,255,.07)",borderRadius:10,padding:12}}>
+                <div style={{fontSize:".59rem",textTransform:"uppercase",letterSpacing:".1em",color:"#8A7E6E",marginBottom:6}}>{who}</div>
+                <div style={{fontFamily:"Georgia,serif",fontSize:"1.3rem",color:"#F4A017"}}>{avg}g <span style={{fontSize:".7rem",color:"#8A7E6E"}}>avg/day</span></div>
+                <div style={{fontSize:".62rem",color:"#8A7E6E",marginTop:3}}>Goal {goal}g/day &mdash; {pct>=90?"On track":pct>=70?"Nearly there":"Below target — check sides"}</div>
+                <div style={{height:4,background:"rgba(255,255,255,.07)",borderRadius:2,marginTop:8,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:pct+"%",background:col,borderRadius:2,transition:"width .6s"}}/>
                 </div>
-              );})}
-              {SKIP[`${day}-Dinner`]&&<div style={{borderRadius:7,padding:"6px",border:"1px solid rgba(255,255,255,.04)",background:"rgba(255,255,255,.015)",textAlign:"center"}}>
-                <div style={{fontSize:".48rem",color:"#2A2520"}}>🌙</div>
-                <div style={{fontSize:".54rem",color:"#2A2520",marginTop:2}}>out tonight</div>
-              </div>}
-            </div>);
+              </div>
+            );
           })}
         </div>
-      </div>
-      <div style={{background:"#1C1814",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"1.1rem",marginBottom:"1rem"}}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:"1.05rem",marginBottom:12}}>🛒 Shopping List <span style={{fontSize:".67rem",color:"#8A7E6E",fontFamily:"inherit",fontWeight:400}}>— pantry excluded</span></div>
-        {Object.values(shop).some(a=>a&&a.length>0)?(
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8}}>
-            {Object.entries(shop).filter(([,v])=>v&&v.length>0).map(([cat,items])=>(
-              <div key={cat} style={{background:"#221E19",borderRadius:8,padding:10}}>
-                <div style={{fontSize:".57rem",textTransform:"uppercase",letterSpacing:".1em",color:"#F4A017",marginBottom:6,fontWeight:600}}>{cat}</div>
-                {items.map(item=><div key={item} style={{fontSize:".73rem",color:"#8A7E6E",padding:"2px 0",display:"flex",alignItems:"center",gap:5}}><span style={{color:"#4A4238",fontSize:".54rem"}}>▫</span>{item}</div>)}
-              </div>
-            ))}
+
+        {/* Week grid */}
+        <div style={{overflowX:"auto",marginBottom:"1.1rem"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(88px,1fr))",gap:5,minWidth:600}}>
+            {DAYS.map((day,i)=>{
+              const ms = (byDay[day]||[]).sort((a,b)=>MEAL_ORDER.indexOf(a.meal)-MEAL_ORDER.indexOf(b.meal));
+              const we = i>=5;
+              return (
+                <div key={day} style={{display:"flex",flexDirection:"column",gap:4}}>
+                  <div style={{borderRadius:7,padding:"5px 4px",textAlign:"center",background:we?"rgba(244,160,23,.12)":"#221E19",border:we?"1px solid rgba(244,160,23,.18)":"1px solid transparent"}}>
+                    <div style={{fontSize:".51rem",textTransform:"uppercase",color:"#8A7E6E"}}>{day}</div>
+                    <div style={{fontFamily:"Georgia,serif",fontSize:"1.05rem"}}>{dates[i].getDate()}</div>
+                  </div>
+                  {ms.map(m=>{
+                    const [bg,bd] = MEAL_BG[m.meal]||MEAL_BG.Lunch;
+                    return (
+                      <div key={m.meal} onClick={()=>openMeal(m)} style={{borderRadius:7,padding:"6px",border:"1px solid "+bd,background:bg,cursor:"pointer",transition:"transform .15s"}}
+                        onMouseEnter={e=>e.currentTarget.style.transform="translateY(-1px)"}
+                        onMouseLeave={e=>e.currentTarget.style.transform="none"}>
+                        <div style={{fontSize:".48rem",textTransform:"uppercase",color:"#4A4238"}}>{MEAL_ICON[m.meal]}</div>
+                        <div style={{fontSize:".75rem"}}>{m.emoji||"🍽"}</div>
+                        <div style={{fontSize:".56rem",fontWeight:500,color:"#F0EAE0",lineHeight:1.25,marginTop:2}}>{m.name}</div>
+                        {m.side&&<div style={{fontSize:".5rem",color:"#5C9E6A",marginTop:2}}>+{m.side}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
-        ):<div style={{color:"#5C9E6A",fontSize:".77rem"}}>✅ Your pantry covers everything!</div>}
-      </div>
-      <div style={{background:"linear-gradient(135deg,rgba(42,171,238,.07),rgba(42,171,238,.02))",border:"1px solid rgba(42,171,238,.18)",borderRadius:12,padding:"0.9rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-        <div>
-          <p style={{fontSize:".78rem",marginBottom:3}}>📱 Send to Telegram</p>
-          {tgOk
-            ?<span style={{fontSize:".67rem",color:"#8A7E6E"}}>Sends meal plan + shopping list to your phone</span>
-            :<span style={{fontSize:".67rem",color:"#4A4238"}}>Optional — add bot details in ⚙️ Setup to enable</span>}
-          {tgMsg&&<div style={{fontSize:".7rem",marginTop:5,color:tgMsg==="ok"?"#5C9E6A":"#C0513A"}}>{tgMsg==="ok"?"✓ Sent successfully!":tgMsg.replace("err:","")}</div>}
         </div>
-        <button style={{...cs.tgb,opacity:(!tgOk||tgSend)?.3:1}} disabled={!tgOk||tgSend} onClick={sendTg}>{tgSend?"Sending…":"Send Now"}</button>
-      </div>
-      {modal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.82)",backdropFilter:"blur(6px)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={e=>{if(e.target===e.currentTarget)setModal(null);}}>
-          <div style={{background:"#141210",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,width:"100%",maxWidth:430,maxHeight:"86vh",overflowY:"auto",padding:"1.4rem",position:"relative"}}>
-            <button onClick={()=>setModal(null)} style={{position:"absolute",top:10,right:10,width:26,height:26,borderRadius:"50%",border:"none",background:"rgba(255,255,255,.06)",color:"#8A7E6E",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-            <span style={{fontSize:"2rem",display:"block",marginBottom:8}}>{modal.emoji||"🍽️"}</span>
-            <h2 style={{fontFamily:"Georgia,serif",fontSize:"1.3rem",marginBottom:8,color:"#F0EAE0"}}>{modal.name}</h2>
-            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
-              {[[modal.isVeg?"🌿 Veg":"🍗 Non-veg",modal.isVeg?"#5C9E6A":"#C0513A",modal.isVeg?"rgba(92,158,106,.1)":"rgba(192,81,58,.1)"],[`⏱ ${modal.prep||"—"}`,"#8A7E6E","rgba(255,255,255,.05)"],[modal.forWhom==="shreya_only"?"Shreya solo":"For both",modal.forWhom==="shreya_only"?"#F4A017":"#8A7E6E",modal.forWhom==="shreya_only"?"rgba(244,160,23,.12)":"rgba(255,255,255,.05)"]].map(([t,col,bg])=>(
-                <span key={t} style={{fontSize:".57rem",padding:"2px 7px",borderRadius:7,background:bg,color:col,fontWeight:500}}>{t}</span>
-              ))}
-            </div>
-            {missing.length>0&&!recLoad&&<div style={{background:"rgba(192,81,58,.1)",border:"1px solid rgba(192,81,58,.3)",borderRadius:8,padding:"8px 12px",marginBottom:12}}>
-              <div style={{fontSize:".6rem",textTransform:"uppercase",letterSpacing:".1em",color:"#C0513A",fontWeight:600,marginBottom:5}}>🛒 Need to buy</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{missing.map(m=><span key={m} style={{background:"rgba(192,81,58,.15)",border:"1px solid rgba(192,81,58,.3)",color:"#E07060",fontSize:".65rem",padding:"1px 7px",borderRadius:8}}>{m}</span>)}</div>
-            </div>}
-            {missing.length===0&&rec&&!recLoad&&<div style={{background:"rgba(92,158,106,.08)",border:"1px solid rgba(92,158,106,.25)",borderRadius:8,padding:"7px 12px",marginBottom:12,fontSize:".68rem",color:"#5C9E6A"}}>✅ You have all ingredients!</div>}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,margin:"10px 0 16px"}}>
-              {[["cal_a","Shreya kcal"],["prot_a","Shreya prot"],["cal_b","Aayush kcal"],["prot_b","Aayush prot"]].map(([k,lbl])=>(
-                <div key={k} style={{background:"#1C1814",borderRadius:7,padding:8,textAlign:"center"}}>
-                  <div style={{fontFamily:"Georgia,serif",fontSize:".95rem",color:"#F4A017",fontWeight:600}}>{modal[k]||"—"}</div>
-                  <div style={{fontSize:".48rem",textTransform:"uppercase",letterSpacing:".07em",color:"#4A4238",marginTop:2}}>{lbl}</div>
+
+        {/* Shopping list */}
+        <div style={{background:"#1C1814",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"1.1rem",marginBottom:"1rem"}}>
+          <div style={{fontFamily:"Georgia,serif",fontSize:"1.05rem",marginBottom:12}}>Shopping List <span style={{fontSize:".67rem",color:"#8A7E6E",fontFamily:"inherit"}}>pantry excluded</span></div>
+          {Object.values(shop).some(a=>a&&a.length>0)?(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8}}>
+              {Object.entries(shop).filter(([,v])=>v&&v.length>0).map(([cat,items])=>(
+                <div key={cat} style={{background:"#221E19",borderRadius:8,padding:10}}>
+                  <div style={{fontSize:".57rem",textTransform:"uppercase",letterSpacing:".1em",color:"#F4A017",marginBottom:6,fontWeight:600}}>{cat}</div>
+                  {items.map(item=><div key={item} style={{fontSize:".73rem",color:"#8A7E6E",padding:"2px 0"}}>{item}</div>)}
                 </div>
               ))}
             </div>
-            {recLoad&&<div style={{textAlign:"center",padding:"1.2rem"}}><Spin s={26}/><p style={{color:"#8A7E6E",fontSize:".73rem",marginTop:8}}>Loading recipe…</p></div>}
-            {rec&&!recLoad&&(<>
-              <div style={{fontSize:".59rem",textTransform:"uppercase",letterSpacing:".1em",color:"#F4A017",marginBottom:8}}>Ingredients</div>
-              <ul style={{listStyle:"none",marginBottom:14}}>
-                {(rec.ingredients||[]).map((ing,ii)=>{const isMissing=missing.includes(ing.name);return(
-                  <li key={ii} style={{padding:"5px 0",fontSize:".76rem",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",justifyContent:"space-between",alignItems:"center",color:isMissing?"#E07060":"#F0EAE0"}}>
-                    <span style={{display:"flex",alignItems:"center",gap:5}}>
-                      {isMissing&&<span style={{fontSize:".6rem",background:"rgba(192,81,58,.18)",border:"1px solid rgba(192,81,58,.3)",color:"#C0513A",padding:"1px 5px",borderRadius:5}}>buy</span>}
-                      {ing.name}
-                    </span>
-                    <span style={{color:isMissing?"rgba(192,81,58,.6)":"#8A7E6E",fontSize:".72rem"}}>{ing.qty} {ing.unit}</span>
-                  </li>
-                );})}
-              </ul>
-              <div style={{fontSize:".59rem",textTransform:"uppercase",letterSpacing:".1em",color:"#F4A017",marginBottom:8}}>Instructions</div>
-              <p style={{fontSize:".76rem",color:"#8A7E6E",lineHeight:1.75}} dangerouslySetInnerHTML={{__html:(rec.instructions||"").replace(/\n/g,"<br/>")}}/>
-            </>)}
-          </div>
+          ):<div style={{color:"#5C9E6A",fontSize:".77rem"}}>Pantry covers everything!</div>}
         </div>
-      )}
-    </Wrap>);
+
+        {/* Telegram */}
+        <div style={{background:"rgba(42,171,238,.05)",border:"1px solid rgba(42,171,238,.15)",borderRadius:12,padding:"0.9rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+          <div>
+            <p style={{fontSize:".78rem",marginBottom:3}}>Send to Telegram</p>
+            {tgOk?<span style={{fontSize:".67rem",color:"#8A7E6E"}}>Sends meal plan + shopping list</span>
+              :<span style={{fontSize:".67rem",color:"#4A4238"}}>Add bot token in Setup to enable</span>}
+            {tgMsg&&<div style={{fontSize:".7rem",marginTop:5,color:tgMsg==="ok"?"#5C9E6A":"#C0513A"}}>{tgMsg==="ok"?"Sent!":tgMsg.replace("err:","")}</div>}
+          </div>
+          <button style={{...cs.tgb,opacity:(!tgOk||tgSend)?.3:1}} disabled={!tgOk||tgSend} onClick={sendTg}>{tgSend?"Sending...":"Send Now"}</button>
+        </div>
+
+        {/* Meal modal */}
+        {modal&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.82)",backdropFilter:"blur(6px)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={e=>{if(e.target===e.currentTarget) setModal(null);}}>
+            <div style={{background:"#141210",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,width:"100%",maxWidth:430,maxHeight:"86vh",overflowY:"auto",padding:"1.4rem",position:"relative"}}>
+              <button onClick={()=>setModal(null)} style={{position:"absolute",top:10,right:10,width:26,height:26,borderRadius:"50%",border:"none",background:"rgba(255,255,255,.06)",color:"#8A7E6E",cursor:"pointer"}}>x</button>
+              <span style={{fontSize:"2rem",display:"block",marginBottom:8}}>{modal.emoji||"🍽"}</span>
+              <h2 style={{fontFamily:"Georgia,serif",fontSize:"1.3rem",marginBottom:8}}>{modal.name}</h2>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
+                {[[modal.isVeg?"Veg":"Non-veg",modal.isVeg?"#5C9E6A":"#C0513A"],["Prep: "+modal.prep,"#8A7E6E"],[modal.forWhom==="shreya_only"?"Shreya solo":"Both","#F4A017"]].map(([t,col])=>(
+                  <span key={t} style={{fontSize:".6rem",padding:"2px 8px",borderRadius:7,background:"rgba(255,255,255,.06)",color:col}}>{t}</span>
+                ))}
+              </div>
+              {modal.side&&<div style={{background:"rgba(92,158,106,.1)",border:"1px solid rgba(92,158,106,.25)",borderRadius:8,padding:"7px 12px",marginBottom:12,fontSize:".7rem",color:"#5C9E6A"}}>Protein side: {modal.side}</div>}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,margin:"10px 0 16px"}}>
+                {[["cal_a","Shreya kcal"],["prot_a","Shreya prot"],["cal_b","Aayush kcal"],["prot_b","Aayush prot"]].map(([k,lbl])=>(
+                  <div key={k} style={{background:"#1C1814",borderRadius:7,padding:8,textAlign:"center"}}>
+                    <div style={{fontFamily:"Georgia,serif",fontSize:".95rem",color:"#F4A017"}}>{modal[k]||"—"}</div>
+                    <div style={{fontSize:".48rem",textTransform:"uppercase",color:"#4A4238",marginTop:2}}>{lbl}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Missing ingredients */}
+              {missing.length>0&&!recLoad&&(
+                <div style={{background:"rgba(192,81,58,.1)",border:"1px solid rgba(192,81,58,.3)",borderRadius:8,padding:"8px 12px",marginBottom:12}}>
+                  <div style={{fontSize:".6rem",textTransform:"uppercase",color:"#C0513A",fontWeight:600,marginBottom:5}}>Need to buy</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{missing.map(m=><span key={m} style={{background:"rgba(192,81,58,.15)",color:"#E07060",fontSize:".65rem",padding:"1px 7px",borderRadius:8}}>{m}</span>)}</div>
+                </div>
+              )}
+              {missing.length===0&&rec&&!recLoad&&(
+                <div style={{background:"rgba(92,158,106,.08)",border:"1px solid rgba(92,158,106,.25)",borderRadius:8,padding:"7px 12px",marginBottom:12,fontSize:".68rem",color:"#5C9E6A"}}>You have all ingredients!</div>
+              )}
+
+              {/* Recipe on demand */}
+              {!rec&&!recLoad&&(
+                <button onClick={()=>fetchRecipe(modal)} style={{...cs.sf,width:"100%",marginBottom:12,fontSize:".78rem",padding:10}}>Get Recipe</button>
+              )}
+              {recLoad&&<div style={{textAlign:"center",padding:"1.2rem"}}><Spin s={26}/><p style={{color:"#8A7E6E",fontSize:".73rem",marginTop:8}}>Loading recipe...</p></div>}
+              {rec&&!recLoad&&(<>
+                <div style={{fontSize:".59rem",textTransform:"uppercase",letterSpacing:".1em",color:"#F4A017",marginBottom:8}}>Ingredients</div>
+                <ul style={{listStyle:"none",marginBottom:14}}>
+                  {(rec.ingredients||[]).map((ing,ii)=>{ const isMissing=missing.includes(ing.name); return (
+                    <li key={ii} style={{padding:"5px 0",fontSize:".76rem",borderBottom:"1px solid rgba(255,255,255,.07)",display:"flex",justifyContent:"space-between",alignItems:"center",color:isMissing?"#E07060":"#F0EAE0"}}>
+                      <span style={{display:"flex",alignItems:"center",gap:5}}>
+                        {isMissing&&<span style={{fontSize:".6rem",background:"rgba(192,81,58,.18)",color:"#C0513A",padding:"1px 5px",borderRadius:5}}>buy</span>}
+                        {ing.name}
+                      </span>
+                      <span style={{color:"#8A7E6E",fontSize:".72rem"}}>{ing.qty} {ing.unit}</span>
+                    </li>
+                  );})}
+                </ul>
+                {rec.proteinTip&&<div style={{background:"rgba(92,158,106,.1)",border:"1px solid rgba(92,158,106,.25)",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:".7rem",color:"#5C9E6A"}}>Protein tip: {rec.proteinTip}</div>}
+                <div style={{fontSize:".59rem",textTransform:"uppercase",letterSpacing:".1em",color:"#F4A017",marginBottom:8}}>Instructions</div>
+                <p style={{fontSize:".76rem",color:"#8A7E6E",lineHeight:1.75}} dangerouslySetInnerHTML={{__html:(rec.instructions||"").replace(/\n/g,"<br/>")}}/>
+                <button onClick={()=>setRec(null)} style={{...cs.gh,width:"100%",marginTop:12,fontSize:".72rem"}}>Hide Recipe</button>
+              </>)}
+            </div>
+          </div>
+        )}
+      </Wrap>
+    );
   }
+
   return null;
 }
 
